@@ -1,14 +1,17 @@
-%% TODO based on http://20bits.com/article/erlang-a-generalized-tcp-server
+%
 % serly_server
 %
 % The idea here is that the gen_server will create a new SSL socket during
 % init, and once the socket is set up, jump into a loop with the socket as the
-% state. The loop should recieve messages from the socket and process them as
-% cherl server does now.
+% state. The loop should recieve messages from the socket and process them.
 
-% Some part of the socket acceptance process is likely blocking. In order to
-% prevent blocking of loop execution, spawn a new
+% The socket acceptance process is blocking. So that we don't end up blocking
+% the business logic, we spawn a new process to accept another connection before
+% calling the business logic loop.
+
 -module(serly_server).
+
+-include("serly.hrl").
 
 -behavior(gen_server).
 
@@ -16,39 +19,23 @@
 -export([init/1, handle_cast/2]).
 
 %% Non-OTP exports
--export([start/3, accept/1, accept_loop/1, ssl_server/1, handle_recvd/2, test/0]).
+-export([start/1, accept/1, accept_loop/1, ssl_server/1, handle_recvd/2]).
 
--record(
-    server_state,
-    {
-        host,
-        port,
-        loop,
-        ssl_sock
-    }
-).
 
-start(Module, Port, Loop) ->
-    ssl:start(),
-    State = #server_state{port = Port, loop = Loop},
-    gen_server:start_link({local, Module}, ?MODULE, State, []).
+start(State) ->
+    gen_server:start_link(?MODULE, State, []).
 
 %% OTP gen_server Behavior
 
-init(State = #server_state{port = Port, loop = Loop}) ->
-    % Grab the cert/key info
-    CertFile = "/home/ksnavely/programming/localhost-certs/localhost.crt",
-    KeyFile = "/home/ksnavely/programming/localhost-certs/localhost.key",
-
-    % Open up a socket for binary data
-    {ok, Socket} = ssl:listen(9999, [{mode, binary}, {certfile, CertFile}, {keyfile, KeyFile}, {reuseaddr, true}, {active, false}]),
-    State2 = State#server_state{ssl_sock = Socket},
-
+init(State) ->
     % Kick off an initial connection
-    {ok, accept(State2)}.
+    State2 = accept(State),
+    {ok, State2}.
 
 handle_cast({accepted, _Pid}, State) ->
-    {noreply, accept(State)}.
+    % A connection has been accepted, accept a new one.
+    State2 = accept(State),
+    {noreply, State2}.
 
 %% Non-OTP functions
 
@@ -84,6 +71,3 @@ handle_recvd(<<"goodbye">>, Socket) ->
 handle_recvd(_, Socket) ->
     io:format("Server received unexpected handle_recvd arg!~n", []),
     ssl:close(Socket).
-
-test() ->
-    start(?MODULE, 9999, {?MODULE, ssl_server}).

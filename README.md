@@ -1,2 +1,9 @@
-# serly
-Erlang example revolving around SSL socket usage
+serly
+=====
+
+An OTP application
+
+Build
+-----
+
+    $ rebar3 compile
