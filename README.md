@@ -48,6 +48,8 @@ Received: Why, hello there!
 Received: Why, hello there!
 Received: Y'all come back now!
 ok
+
+2> usage_example:multi_start(20). % Start 20 concurrent clients
 ```
 
 Localhost x509 tips

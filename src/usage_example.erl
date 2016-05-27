@@ -9,30 +9,48 @@
 
 -module(usage_example).
 
--export([start/0, client/2, server/1, handle_connection/1, handle_recvd/2]).
+-export([start/0, multi_start/1, client/2, server/1, handle_connection/1, handle_recvd/2]).
 
 %%====================================================================
-%% Example entry point
+%% Example entry points
 %%====================================================================
 
 %% start
+%%
+%% See multi_start/1
+start() ->
+    multi_start(1).
+
+%% multi_start
 %%
 %% Start the serly application and pass a callback {Module, Function}
 %% to serly:listen.
 %%
 %% serly will handle the TLS TCP connection serving and pass the active
 %% socket to the callback function.
-start() ->
+%%
+%% spawn NClients client sessions concurrently
+multi_start(NClients) ->
     % The following two lines are all that's needed to use serly!
     application:start(serly),
     serly:listen({usage_example, server}),
 
-    % Start the example client
-    ssl:start(),
-    {ok, Port} = application:get_env(serly, port),
-    handle_connection(
-        ssl:connect("localhost", Port, [], infinity)
-    ).
+    % Start the example client(s)
+    spawn_client(NClients).
+
+spawn_client(0) ->
+    ok;
+spawn_client(Acc) ->
+    spawn(
+        fun() ->
+			ssl:start(),
+			{ok, Port} = application:get_env(serly, port),
+			handle_connection(
+				ssl:connect("localhost", Port, [], infinity)
+			)
+         end
+    ),
+    spawn_client(Acc - 1).
 
 handle_connection({error, Error}) ->
     {error, Error};
