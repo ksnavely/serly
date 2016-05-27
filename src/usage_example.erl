@@ -1,6 +1,6 @@
 -module(usage_example).
 
--export([start/0, client/2, server/1, handle_recvd/2]).
+-export([start/0, client/2, server/1, handle_connection/1, handle_recvd/2]).
 
 start() ->
     application:start(serly),
@@ -10,7 +10,13 @@ start() ->
     % Start the example client interaction
     ssl:start(),
     {ok, Port} = application:get_env(serly, port),
-    {ok, Socket} = ssl:connect("localhost", Port, [], infinity),
+    handle_connection(
+        ssl:connect("localhost", Port, [], infinity)
+    ).
+
+handle_connection({error, Error}) ->
+    {error, Error};
+handle_connection({ok, Socket}) ->
 	ssl:setopts(Socket, [{active, false}]),
     client(Socket, 5).
 

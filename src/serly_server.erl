@@ -19,7 +19,7 @@
 -export([init/1, handle_cast/2, terminate/2]).
 
 %% Non-OTP exports
--export([start/1]).
+-export([start/1, handle_connection/2]).
 
 %%====================================================================
 %% API
@@ -39,9 +39,17 @@ init(State) ->
 
 handle_cast({accepting, _Pid}, State) ->
     % Do the blocking part of socket acceptance
-	#server_state{loop = {M, F}, ssl_sock = Socket} = State,
-    {ok, Socket2} = ssl:transport_accept(Socket),
-    ok = ssl:ssl_accept(Socket2),
+    #server_state{ssl_sock = Socket} = State,
+    handle_connection(ssl:transport_accept(Socket), State).
+
+terminate(Reason, State) ->
+    ok.
+
+handle_connection({error, Error}, State) ->
+    {stop, Error, State};
+handle_connection({ok, Socket}, State) ->
+    % TLS/SSL handshake
+    ok = ssl:ssl_accept(Socket),
 
     % A connection has been accepted, begin a new serly_sup
     % child process to handle the next connection while we run
@@ -50,9 +58,7 @@ handle_cast({accepting, _Pid}, State) ->
 
 
     % Work with the connection
-    M:F(Socket2),
+    #server_state{loop = {M, F}} = State,
+    M:F(Socket),
 
     {stop, normal, State}.
-
-terminate(Reason, State) ->
-    ok.
