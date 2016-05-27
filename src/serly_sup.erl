@@ -29,10 +29,18 @@ start_link() ->
 %%====================================================================
 
 init([]) ->
-    % The child is added by listen/1 to allow for plugin-style business
-    % logic.
+    % We'll use a simple_one_for_one strategy and dynamic children
+    Children = [{
+        serly_server,              % Id
+        {serly_server, start, []}, % {Module, Function, Arguments}
+        temporary,                 % RestartStrategy
+        brutal_kill,               % ShutdownStrategy
+        worker,                    % worker or supervisor
+        [serly_server]             % ModuleList which implements the process
+    }],
+
     % {ok, {{RestartStrategy, AllowedRestarts, MaxSeconds}, ChildSpecificationList}}
-    {ok, {{one_for_one, 5, 10}, []}}.
+    {ok, {{simple_one_for_one, 5, 10}, Children}}.
 
 %%====================================================================
 %% Internal functions
@@ -45,17 +53,8 @@ listen(Loop = {M, F}) ->
     KeyFile = "/home/ksnavely/programming/localhost-certs/localhost.key",
 
     % Open up a socket for binary data
+    % TODO handle {error,eaddrinuse}
     {ok, Socket} = ssl:listen(Port, [{mode, binary}, {certfile, CertFile}, {keyfile, KeyFile}, {reuseaddr, true}, {active, false}]),
 
     State = #server_state{port = Port, loop = Loop, ssl_sock = Socket},
-
-    Child = {
-        serly_server,              % Id
-        {serly_server, start, [State]}, % {Module, Function, Arguments}
-        temporary,                 % RestartStrategy
-        brutal_kill,               % ShutdownStrategy
-        worker,                    % worker or supervisor
-        [serly_server]             % ModuleList which implements the process
-    },
-
-    supervisor:start_child(?MODULE, Child).
+    supervisor:start_child(?MODULE, [State]).

@@ -16,42 +16,43 @@
 -behavior(gen_server).
 
 %% OTP exports
--export([init/1, handle_cast/2]).
+-export([init/1, handle_cast/2, terminate/2]).
 
 %% Non-OTP exports
--export([start/1, accept/1, accept_loop/1]).
+-export([start/1]).
 
-%% Non-OTP API
-
-accept(State = #server_state{ssl_sock = Socket, loop = Loop}) ->
-    % Process the rest of the socket acceptance in another process
-    proc_lib:spawn(?MODULE, accept_loop, [{self(), Socket, Loop}]),
-    State.
-
-accept_loop({Pid, Socket, {M, F} = Loop}) ->
-    % Do the blocking part of socket acceptance
-    {ok, Socket2} = ssl:transport_accept(Socket),
-    ok = ssl:ssl_accept(Socket2),
-
-    % We've accepted, cast to trigger this accept_loop again
-    gen_server:cast(Pid, {accepted, self()}),
-
-    % Work with the connection
-    M:F(Socket2).
+%%====================================================================
+%% API
+%%====================================================================
 
 start(State) ->
-    gen_server:start_link(?MODULE, State, []).
+    {ok, Pid} = gen_server:start_link(?MODULE, State, []),
+    gen_server:cast(Pid, {accepting, self()}),
+    {ok, Pid}.
 
 %%====================================================================
 %% gen_server callbacks
 %%====================================================================
 
 init(State) ->
-    % Kick off an initial connection
-    State2 = accept(State),
-    {ok, State2}.
+    {ok, State}.
 
-handle_cast({accepted, _Pid}, State) ->
-    % A connection has been accepted, accept a new one.
-    State2 = accept(State),
-    {noreply, State2}.
+handle_cast({accepting, _Pid}, State) ->
+    % Do the blocking part of socket acceptance
+	#server_state{loop = {M, F}, ssl_sock = Socket} = State,
+    {ok, Socket2} = ssl:transport_accept(Socket),
+    ok = ssl:ssl_accept(Socket2),
+
+    % A connection has been accepted, begin a new serly_sup
+    % child process to handle the next connection while we run
+    % the business logic.
+    supervisor:start_child(serly_sup, [State]),
+
+
+    % Work with the connection
+    M:F(Socket2),
+
+    {stop, normal, State}.
+
+terminate(Reason, State) ->
+    ok.
