@@ -1,13 +1,19 @@
 serly
 =====
 
-serly is an OTP application which serves up TLS TCP sockets
+serly is an OTP application which serves up TLS/SSL TCP sockets
 to a callback function. The application config, serly.config,
 details which port and x509 certificate/key to use for the
 created sockets.
 
 This application is pretty new so it may not handle all socket
 closing/error modes perfectly.
+
+The opened socket also uses the following options:
+  - `{mode, binary}`: received packets are delivered as binary
+  - `{reuseaddr, true}`: many workers will reuse the socket
+  - `{active, false}`: the callback function must use ssl:recv
+    to receive packet data
 
 Build
 -----
@@ -42,4 +48,16 @@ Received: Why, hello there!
 Received: Why, hello there!
 Received: Y'all come back now!
 ok
+```
+
+Localhost x509 tips
+-------------------
+If you want to test this out locally, you'll want to generate an x509
+certificate and key for localhost. This is pretty straightforward, here's
+an example for debian:
+
+```
+$> openssl req -x509 -sha256 -nodes -newkey rsa:2048 -days 365 -keyout localhost.key -out localhost.crt
+$> sudo cp localhost.crt /usr/local/share/ca-certificates/
+$> sudo update-ca-certificates
 ```
