@@ -48,8 +48,12 @@ handle_cast({accept, _Pid}, State) ->
     #server_state{ssl_sock = Socket} = State,
     handle_connection(ssl:transport_accept(Socket), State).
 
-terminate(Reason, State) ->
+terminate(_Reason, _State) ->
     ok.
+
+%%====================================================================
+%% Internal functions
+%%====================================================================
 
 handle_connection({error, Error}, State) ->
     {stop, Error, State};

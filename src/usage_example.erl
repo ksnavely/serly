@@ -18,17 +18,17 @@
 %% start
 %%
 %% Start the serly application and pass a callback {Module, Function}
-%% to serly_sup:listen.
+%% to serly:listen.
 %%
 %% serly will handle the TLS TCP connection serving and pass the active
 %% socket to the callback function.
 start() ->
-    % The following three lines are all that's needed to use serly!
-    ssl:start(),
+    % The following two lines are all that's needed to use serly!
     application:start(serly),
-    serly_sup:listen({usage_example, server}),
+    serly:listen({usage_example, server}),
 
     % Start the example client
+    ssl:start(),
     {ok, Port} = application:get_env(serly, port),
     handle_connection(
         ssl:connect("localhost", Port, [], infinity)
