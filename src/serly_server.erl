@@ -19,25 +19,9 @@
 -export([init/1, handle_cast/2]).
 
 %% Non-OTP exports
--export([start/1, accept/1, accept_loop/1, ssl_server/1, handle_recvd/2]).
+-export([start/1, accept/1, accept_loop/1]).
 
-
-start(State) ->
-    gen_server:start_link(?MODULE, State, []).
-
-%% OTP gen_server Behavior
-
-init(State) ->
-    % Kick off an initial connection
-    State2 = accept(State),
-    {ok, State2}.
-
-handle_cast({accepted, _Pid}, State) ->
-    % A connection has been accepted, accept a new one.
-    State2 = accept(State),
-    {noreply, State2}.
-
-%% Non-OTP functions
+%% Non-OTP API
 
 accept(State = #server_state{ssl_sock = Socket, loop = Loop}) ->
     % Process the rest of the socket acceptance in another process
@@ -55,19 +39,19 @@ accept_loop({Pid, Socket, {M, F} = Loop}) ->
     % Work with the connection
     M:F(Socket2).
 
-ssl_server(Socket) ->
-    case ssl:recv(Socket, 0) of
-        {ok, IOList} -> 
-            handle_recvd(iolist_to_binary(IOList), Socket),
-            ssl_server(Socket);
-        {error, closed} -> ok
-    end.
+start(State) ->
+    gen_server:start_link(?MODULE, State, []).
 
-handle_recvd(<<"hello">>, Socket) ->
-    ssl:send(Socket, "Why, hello there!");
-handle_recvd(<<"goodbye">>, Socket) ->
-    ssl:send(Socket, "Y'all come back now!"),
-    ssl:close(Socket);
-handle_recvd(_, Socket) ->
-    io:format("Server received unexpected handle_recvd arg!~n", []),
-    ssl:close(Socket).
+%%====================================================================
+%% gen_server callbacks
+%%====================================================================
+
+init(State) ->
+    % Kick off an initial connection
+    State2 = accept(State),
+    {ok, State2}.
+
+handle_cast({accepted, _Pid}, State) ->
+    % A connection has been accepted, accept a new one.
+    State2 = accept(State),
+    {noreply, State2}.

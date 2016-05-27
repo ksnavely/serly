@@ -10,7 +10,7 @@
 -behaviour(supervisor).
 
 %% API
--export([listen/0, start_link/0]).
+-export([listen/1, start_link/0]).
 
 %% Supervisor callbacks
 -export([init/1]).
@@ -29,25 +29,16 @@ start_link() ->
 %%====================================================================
 
 init([]) ->
-    State = listen(),
-
+    % The child is added by listen/1 to allow for plugin-style business
+    % logic.
     % {ok, {{RestartStrategy, AllowedRestarts, MaxSeconds}, ChildSpecificationList}}
-    Children = [{
-        serly_server,              % Id
-        {serly_server, start, [State]}, % {Module, Function, Arguments}
-        temporary,                 % RestartStrategy
-        brutal_kill,               % ShutdownStrategy
-        worker,                    % worker or supervisor
-        [serly_server]             % ModuleList which implements the process
-    }],
-    % {ok, {{RestartStrategy, AllowedRestarts, MaxSeconds}, ChildSpecificationList}}
-    {ok, {{one_for_one, 5, 10}, Children}}.
+    {ok, {{one_for_one, 5, 10}, []}}.
 
 %%====================================================================
 %% Internal functions
 %%====================================================================
 
-listen() ->
+listen(Loop = {M, F}) ->
     ssl:start(),
     Port = 9999,
     CertFile = "/home/ksnavely/programming/localhost-certs/localhost.crt",
@@ -56,5 +47,15 @@ listen() ->
     % Open up a socket for binary data
     {ok, Socket} = ssl:listen(Port, [{mode, binary}, {certfile, CertFile}, {keyfile, KeyFile}, {reuseaddr, true}, {active, false}]),
 
-    Loop = {serly_server, ssl_server},
-    #server_state{port = Port, loop = Loop, ssl_sock = Socket}.
+    State = #server_state{port = Port, loop = Loop, ssl_sock = Socket},
+
+    Child = {
+        serly_server,              % Id
+        {serly_server, start, [State]}, % {Module, Function, Arguments}
+        temporary,                 % RestartStrategy
+        brutal_kill,               % ShutdownStrategy
+        worker,                    % worker or supervisor
+        [serly_server]             % ModuleList which implements the process
+    },
+
+    supervisor:start_child(?MODULE, Child).
