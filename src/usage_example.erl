@@ -9,7 +9,8 @@ start() ->
 
     % Start the example client interaction
     ssl:start(),
-    {ok, Socket} = ssl:connect("localhost", 9999, [], infinity),
+    {ok, Port} = application:get_env(serly, port),
+    {ok, Socket} = ssl:connect("localhost", Port, [], infinity),
 	ssl:setopts(Socket, [{active, false}]),
     client(Socket, 5).
 
@@ -33,7 +34,7 @@ client(Socket, Acc) ->
 
 server(Socket) ->
     case ssl:recv(Socket, 0) of
-        {ok, IOList} -> 
+        {ok, IOList} ->
             handle_recvd(iolist_to_binary(IOList), Socket),
             server(Socket);
         {error, closed} -> ok
