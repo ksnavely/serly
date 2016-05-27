@@ -1,5 +1,5 @@
 {application, serly,
- [{description, "An OTP application"},
+ [{description, "A TLS TCP socket server application"},
   {vsn, "0.1.0"},
   {registered, []},
   {mod, { serly_app, []}},

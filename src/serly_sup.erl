@@ -3,7 +3,8 @@
 %%
 %%  serly_sup provides simple_one_for_one supervision of serly_server
 %%  children/workers. Workers are add dynamically by the listen/1
-%%  API exposed here, and by the workers themselves.
+%%  API exposed here, and by the workers themselves during connection
+%%  handling.
 %%
 %% @end
 %%%-------------------------------------------------------------------
@@ -32,7 +33,9 @@ start_link() ->
 %% listen
 %% Open up a socket given a configured port, x509 certificate, and key
 %% Start a new worker under serly_sup which will handle incoming connections
-listen(Loop = {M, F}) ->
+%%
+%% Loop: a callback {Module, Function} tuple
+listen(Loop) ->
     ssl:start(),
     {ok, Port} = application:get_env(serly, port),
     {ok, CertFile} = application:get_env(serly, certfile),
@@ -65,7 +68,7 @@ init([]) ->
     % We'll use a simple_one_for_one strategy and dynamic children
     Children = [{
         serly_server,              % Id
-        {serly_server, start, []}, % {Module, Function, Arguments}
+        {serly_server, start_link, []}, % {Module, Function, Arguments}
         temporary,                 % RestartStrategy
         brutal_kill,               % ShutdownStrategy
         worker,                    % worker or supervisor
