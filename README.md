@@ -3,7 +3,7 @@ serly
 
 serly is an OTP application which serves up TLS/SSL TCP sockets
 to a callback function. The application config, serly.config,
-details which port and x509 certificate/key to use for the
+specifies which port and x509 certificate/key to use for the
 created sockets.
 
 This application is pretty new so it may not handle all socket
